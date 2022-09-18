@@ -1,0 +1,71 @@
+v1/{application id}/devices/{device id}/measures
+
+{
+   "ts":"2022-07-14T18:51:39.590605310Z",
+   "identifiers": {
+       "device_id": "name-of-device",
+       "application_id": "farm",
+       "dev_uuid": "0062FB17B8CEB5F7"       
+   },
+   "rx_info": {
+       "ssid": "wifi-name",
+       "rssi": -60
+   },
+   "measures":{
+       "nh3" : {
+           "raw" : "0.0",
+           "value" : "0.0",
+           "unit" : "ppm"
+       },
+       "co" : {
+           "raw" : "0.0",
+           "value" : "0.0",
+           "unit" : "ppb"
+       }
+    }
+}
+
+
+
+
+v1/{application id}/devices/{device id}/metadata
+
+{
+   "ts":"2022-07-14T18:51:39.590605310Z",
+   "identifiers": {
+       "device_id": "name-of-device",
+       "application_id": "farm",
+       "dev_uuid": "0062FB17B8CEB5F7"       
+   },
+   "rx_info": {
+       "ssid": "wifi-name",
+       "rssi": -60
+   },
+   "location": {
+       "lat":36.72826292956254,
+       "lng":-4.398295360622022}
+   }
+}
+
+v1/{application id}/devices/{device id}/status
+
+{
+   "ts":"2022-07-14T18:51:39.590605310Z",
+   "identifiers": {
+       "device_id": "name-of-device",
+       "application_id": "farm",
+       "dev_uuid": "0062FB17B8CEB5F7"       
+   },
+   "rx_info": {
+       "ssid": "wifi-name",
+       "rssi": -60
+   },
+   "battery" : {
+       "value" : 3.4,
+       "unit" : "V"
+   },
+   "outputs" : {
+       "relay1" : "ON",
+       "relay2" : "OFF"
+   }
+}
