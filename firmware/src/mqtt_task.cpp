@@ -18,7 +18,7 @@
 #include "uinterface.h"
 
 enum {
-    verbose = 1,
+    verbose = 2,
     apAutoStart = 0
 };
 
@@ -32,8 +32,9 @@ WiFiClient wifiClient;
 PubSubClient client(wifiClient);
 
 /*Create a static freertos timer*/
-static TimerHandle_t tmTemp;
-static TimerHandle_t tmPing;
+static TimerHandle_t tmPubMeasurement;
+static TimerHandle_t tmPubStatus;
+static TimerHandle_t tmPubInfo;
 static bool isServerActive = false;
 
 /* Declare a variable to hold the created event group. */
@@ -119,40 +120,77 @@ static double applyCalibration( struct caleq* eq, double x ) {
 
 /*Format json string with status info.*/
 static void status2json( char* json ) {
-    int16_t raw = getadcValue( );
-    double converted = applyCalibration( &eq, raw );
+    
+    double batt = 3.7;
     time_t now;
     time(&now);
     sprintf(json,
-    "{ \"%s\": %ld, \"%s\": %d, \"%s\": %0.1f, \"%s\": \"%s\", \"%s\": \"%s\", \"%s\": \"%s\" }",
-         "timestamp", now,  
-         "raw", raw,
-         "temperatura", converted + 0.05, 
-         "rele1", ctrlStatus.relay1 ? "ON" : "OFF", 
-         "rele2", ctrlStatus.relay2 ? "ON" : "OFF",
-         "transmitir", ctrlStatus.enableTemp ? "ON" : "OFF"  );
+        "{ \"timestamp\": %ld, \"batt\": %f }",
+        now,  
+        batt
+    );
+
 }
 
-/*Callback function used to pusblish temperature on the mqtt topic*/
-static void tmtemp_callback( TimerHandle_t xTimer ) {
+static void measurements2json( char* json ) {
+    int16_t raw = getadcValue( );
+    double converted = applyCalibration( &eq, raw );
+    float sensor_value = 1001.1;
+    char const sensor_name[] = "ch4";
+    char const unit[] = "ppb";
+    char const status[] = "ok";
+    time_t now;
+    time(&now);
+    sprintf(json,
+        "{ \"%s\" : { \"value\": %f, \"context\":{ \"unit\": \"%s\", \"status\": \"%s\"}}, \"timestamp\": %" PRIu64 "}",
+        sensor_name,
+        sensor_value,
+        unit,
+        status,
+        (uint64_t)now*1000
+    ); 
+}
+
+
+static void info2json( char* json ) {
+    //TODO Add GPS 
+    time_t now;
+    time(&now);
+    sprintf(json,
+        "{ \"location\" : { \"lat\": %f, \"lng\": %f }, \"timestamp\": %ld }",
+        cfg.service.geo.lat,
+        cfg.service.geo.lng,
+        now
+    ); 
+}
+
+/*Callback function used to pusblish measurement on the mqtt topic*/
+static void pubMeasurement_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
-    status2json( jsonstatus );
+    measurements2json( jsonstatus );
     client.publish( sc->temp.topic, jsonstatus);
-    Serial.printf("Publishing temperature %s\n", jsonstatus);          
+    Serial.printf("Publishing measurements %s\n", jsonstatus);          
 }
 
-/*Callback function used to pusblish timestamp on the mqtt topic*/
-static void tmping_callback( TimerHandle_t xTimer ) {
+/*Callback function used to pusblish status on the mqtt topic*/
+static void pubStatus_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
     status2json( jsonstatus );
     client.publish( sc->ping.topic, jsonstatus );
-    Serial.printf("Publishing timestamp %s\n", jsonstatus);
+    Serial.printf("Publishing status %s\n", jsonstatus);
     
     if( verbose ) {
         printLocalTime();
     }
 }
 
+/*Callback function used to pusblish info on the mqtt topic*/
+static void pubInfo_callback( TimerHandle_t xTimer ) {
+    struct service_config const* sc = &scfg;
+    info2json( jsonstatus );
+    client.publish( sc->temp.topic, jsonstatus);
+    Serial.printf("Publishing info %s\n", jsonstatus);          
+}
 
 /*Funtion to convert byte* to char* */
 static void byteToChar(char* dest, byte* src, int len) {
@@ -162,60 +200,6 @@ static void byteToChar(char* dest, byte* src, int len) {
     dest[len] = '\0';
 }
 
-/*Callback function used to process messages received from subscribed mqtt topics*/
-static void subs_callback(char* topic, byte *payload, unsigned int length) {
-
-    char value[length+1];
-    byteToChar(value, payload, length);
-    if( verbose )
-        Serial.printf("Topic: %s, value: %s\n", topic, value);
-    
-    struct service_config const* sc = &scfg;
-    if( strcmp(sc->relay1.topic , topic) == 0 ) { 
-        if ( strcmp( value, "ON") == 0 ){
-            ctrlStatus.relay1 = HIGH;
-            digitalWrite(RELAY1, ctrlStatus.relay1);
-        }
-        else if ( strcmp( value, "OFF") == 0 ) {
-            ctrlStatus.relay1 = LOW;
-            digitalWrite(RELAY1, ctrlStatus.relay1);
-        }
-        else
-            Serial.printf("Invalid value for topic %s: %s\n", topic, value);
-    }
-    else if( strcmp(sc->relay2.topic, topic) == 0 ) {
-        if ( strcmp( value, "ON") == 0 ) {
-            ctrlStatus.relay2 = HIGH;
-            digitalWrite(RELAY2, ctrlStatus.relay2);
-        }
-        else if ( strcmp( value, "OFF") == 0 ) {
-            ctrlStatus.relay2 = LOW;
-            digitalWrite(RELAY2, ctrlStatus.relay2);
-        }
-        else
-            Serial.printf("Invalid value for topic %s: %s\n", topic, value);
-    }
-    else if( strcmp(sc->enableTemp.topic, topic) == 0 ) {
-        if ( strcmp( value, "ON") == 0 ) {
-            xTimerStart(tmTemp, 100 );
-            ctrlStatus.enableTemp = true;
-        }
-        else if ( strcmp( value, "OFF") == 0 ) {
-            xTimerStop(tmTemp, 100 );
-            ctrlStatus.enableTemp = false;
-        }
-        else
-            Serial.printf("Invalid value for topic %s: %s\n", topic, value);
-    }
-    else{
-        Serial.printf("Unknown topic: %s\n", topic );
-        return;
-    }
-
-    /*Publish the new status*/
-    status2json( jsonstatus );
-    client.publish( sc->ping.topic, jsonstatus );
-}
 
 /*Test the status of the Wifi connection and attempt reconnection if it fails.*/
 static bool testWifi( void ) {
@@ -285,8 +269,9 @@ bool ctrl_isConfigModeEnable( void ) {
 void ctrl_task( void * parameter ) {
 
     interface_setMode( OFF );
-    tmTemp = xTimerCreate( "temperature", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, tmtemp_callback );
-    tmPing = xTimerCreate( "ping", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, tmping_callback );
+    tmPubMeasurement = xTimerCreate( "tmMeasurement", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, pubMeasurement_callback );
+    tmPubStatus = xTimerCreate( "tmStatu", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, pubStatus_callback );
+    tmPubInfo = xTimerCreate( "tmInfo", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, pubInfo_callback );
 
     struct acq_cal const* cal = &cfg.cal;
     getCalibrationEquation( &eq, cal->val[0].x, cal->val[0].y, cal->val[1].x, cal->val[1].y );
@@ -345,9 +330,11 @@ void ctrl_task( void * parameter ) {
                 }
             }
             
-            if( verbose )
+            if( verbose ) {
                 print_NetworkCfg( wf );
-            
+                Serial.printf("Mac: %s\n", cfg.service.client_id );
+            }
+
             WiFi.begin( wf->ssid, wf->pass );
             if ( !testWifi() ) {
                 Serial.println("\nWifi connection failed");
@@ -380,23 +367,20 @@ void ctrl_task( void * parameter ) {
             }
             
             client.setServer( scfg.host_ip, scfg.port);
-            client.setCallback(subs_callback);
             
             Serial.println("Attempting MQTT connection...");
             if ( client.connect( scfg.client_id, scfg.username, scfg.password ) ) {                
-                client.subscribe( scfg.relay1.topic);
-                client.subscribe( scfg.relay2.topic);
-                client.subscribe( scfg.enableTemp.topic);
                 
-                xTimerChangePeriod( tmTemp, pdMS_TO_TICKS( getupdatePeriod( &scfg.temp )), 100 );
-                xTimerStop( tmTemp, 100 );
-                xTimerChangePeriod( tmPing, pdMS_TO_TICKS( getupdatePeriod( &scfg.ping )), 100 );
-                xTimerStart( tmPing, 100 );
+                xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( 10000), 100 );
+                xTimerStart( tmPubMeasurement, 100 );
+                //xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.ping )), 100 );
+                xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( 20000), 100 );
+                xTimerStart( tmPubStatus, 100 );
+                xTimerChangePeriod( tmPubInfo, pdMS_TO_TICKS( 30000 ), 100 );
+                xTimerStart( tmPubStatus, 100 );
                 
                 if (verbose ) {
                     Serial.println("Connected to broker");
-                    Serial.printf("Subscribed to: %s\n, %s\n, %s\n", 
-                        scfg.relay1.topic, scfg.relay2.topic, scfg.enableTemp.topic );
                 }
             } 
             else {

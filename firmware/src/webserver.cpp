@@ -251,9 +251,6 @@ void webserver_task( void * parameter ) {
         json["ping_tp"] = std::string(cfg.service.ping.topic, strlen(cfg.service.ping.topic));
         json["ping_tm"] = cfg.service.ping.period;
         json["ping_ud"] = std::string(cfg.service.ping.unit, strlen(cfg.service.ping.unit));
-        json["rel1_tp"] = std::string(cfg.service.relay1.topic, strlen(cfg.service.relay1.topic));
-        json["rel2_tp"] = std::string(cfg.service.relay2.topic, strlen(cfg.service.relay2.topic));
-        json["en_tp"]   = std::string(cfg.service.enableTemp.topic , strlen(cfg.service.enableTemp.topic));
 
         String content;
         serializeJson(json, content);
@@ -430,9 +427,6 @@ void webserver_task( void * parameter ) {
         if (root.containsKey("ping_tp"))  strcpy(cfg.service.ping.topic, root["ping_tp"]); 
         if (root.containsKey("ping_tm"))  cfg.service.ping.period = root["ping_tm"];
         if (root.containsKey("ping_ud"))  strcpy(cfg.service.ping.unit, root["ping_ud"]);
-        if (root.containsKey("rel1_tp"))  strcpy(cfg.service.relay1.topic, root["rel1_tp"]);
-        if (root.containsKey("rel2_tp"))  strcpy(cfg.service.relay2.topic, root["rel2_tp"]);
-        if (root.containsKey("en_tp"))    strcpy(cfg.service.enableTemp.topic, root["en_tp"]);
 
         xEventGroupSetBits( eventGroup, SAVE_CFG | UPDATE_SERVICE );
         request->send(200, "text/plain", "ok");

@@ -62,9 +62,10 @@ struct service_config {
     char password[32];
     struct pub_topic temp;
     struct pub_topic ping;
-    struct sub_topic relay1;
-    struct sub_topic relay2;
-    struct sub_topic enableTemp;
+    struct location{
+        double lat;
+        double lng;
+    } geo;
 };
 
 struct ap_config {

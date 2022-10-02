@@ -20,12 +20,18 @@ static int const cfgaddr = 0;
 static int const caladdr = 900;
 
 
-void static strgetname( char * name, char const* prefix ) {
+void static strgetname( char* name, char const* prefix ) {
     uint8_t baseMac[6];
     esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
     sprintf(name, "%s_%02X%02X", prefix, baseMac[4], baseMac[5]);
 }
 
+void static strgetclientid( char* name ) {
+    uint8_t baseMac[6];
+    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+    sprintf(name, "%02x%02x%02x%02x%02x%02x", 
+        baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5] );   
+}
 
 static void setdefault( struct config* cfg ) { 
     memset( cfg, 0 , sizeof( struct config));
@@ -42,6 +48,13 @@ static void setdefault( struct config* cfg ) {
     strcpy( cfg->wifi.mode, "dhcp" );
     strcpy( cfg->ntp.host, "pool.ntp.org");
 
+    //strcpy(cfg->service.client_id, "a16c41bc003e");
+    strgetclientid( cfg->service.client_id );
+    strcpy( cfg->service.host_ip, "industrial.api.ubidots.com");
+    cfg->service.port = 1883;
+    sprintf(cfg->service.temp.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
+    sprintf(cfg->service.ping.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
+    
     cfg->cal = cal;
 }
 
@@ -145,9 +158,6 @@ void print_ServiceCfg( struct service_config const* srvc ) {
         Serial.printf("MQTT PING_TOPIC: %s\n", srvc->ping.topic);
         Serial.printf("MQTT PING_INTER: %d\n", srvc->ping.period);
         Serial.printf("MQTT PING_UND: %s\n", srvc->ping.unit);
-        Serial.printf("MQTT REL1_TOPIC: %s\n", srvc->relay1.topic);
-        Serial.printf("MQTT REL2_TOPIC: %s\n", srvc->relay2.topic);
-        Serial.printf("MQTT EN_TOPIC: %s\n", srvc->enableTemp.topic);
 }
 
 void print_apCfg( struct ap_config const* ap ) {
