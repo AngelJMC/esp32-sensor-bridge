@@ -251,6 +251,8 @@ void webserver_task( void * parameter ) {
         json["ping_tp"] = std::string(cfg.service.ping.topic, strlen(cfg.service.ping.topic));
         json["ping_tm"] = cfg.service.ping.period;
         json["ping_ud"] = std::string(cfg.service.ping.unit, strlen(cfg.service.ping.unit));
+        json["loc_lat"] = cfg.service.geo.lat;
+        json["loc_lon"] = cfg.service.geo.lng;
 
         String content;
         serializeJson(json, content);
@@ -265,6 +267,8 @@ void webserver_task( void * parameter ) {
         json["y0"]    = cfg.cal.val[0].y;
         json["x1"]    = cfg.cal.val[1].x;
         json["y1"]    = cfg.cal.val[1].y;
+        json["sen1"] = std::string(cfg.cal.id_sens_1, strlen(cfg.cal.id_sens_1));
+        json["sen2"] = std::string(cfg.cal.id_sens_2, strlen(cfg.cal.id_sens_2));
 
         String content;
         serializeJson(json, content);
@@ -427,6 +431,8 @@ void webserver_task( void * parameter ) {
         if (root.containsKey("ping_tp"))  strcpy(cfg.service.ping.topic, root["ping_tp"]); 
         if (root.containsKey("ping_tm"))  cfg.service.ping.period = root["ping_tm"];
         if (root.containsKey("ping_ud"))  strcpy(cfg.service.ping.unit, root["ping_ud"]);
+        if (root.containsKey("loc_lat"))  cfg.service.geo.lat = root["loc_lat"];
+        if (root.containsKey("loc_lon"))  cfg.service.geo.lng = root["loc_lon"];
 
         xEventGroupSetBits( eventGroup, SAVE_CFG | UPDATE_SERVICE );
         request->send(200, "text/plain", "ok");
@@ -456,6 +462,8 @@ void webserver_task( void * parameter ) {
         if (root.containsKey("y0"))     cfg.cal.val[0].y =  root["y0"];
         if (root.containsKey("x1"))     cfg.cal.val[1].x =  root["x1"];
         if (root.containsKey("y1"))     cfg.cal.val[1].y =  root["y1"];
+        if (root.containsKey("sen1"))   strcpy(cfg.cal.id_sens_1, root["sen1"]);
+        if (root.containsKey("sen2"))   strcpy(cfg.cal.id_sens_2, root["sen2"]);
         if (root.containsKey("owrite")) overwrite = root["owrite"];
 
         xEventGroupSetBits( eventGroup, SAVE_CFG | UPDATE_CALIBRATION | ( overwrite ? OVERWRITE_CALIBRATION : 0) );

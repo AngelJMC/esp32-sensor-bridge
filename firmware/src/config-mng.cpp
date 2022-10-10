@@ -55,6 +55,12 @@ static void setdefault( struct config* cfg ) {
     sprintf(cfg->service.temp.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
     sprintf(cfg->service.ping.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
     
+    cfg->service.temp.period = 20;
+    strcpy( cfg->service.temp.unit, "Second" );
+
+    cfg->service.ping.period = 1;
+    strcpy( cfg->service.ping.unit, "Minute" );
+
     cfg->cal = cal;
 }
 
@@ -158,6 +164,8 @@ void print_ServiceCfg( struct service_config const* srvc ) {
         Serial.printf("MQTT PING_TOPIC: %s\n", srvc->ping.topic);
         Serial.printf("MQTT PING_INTER: %d\n", srvc->ping.period);
         Serial.printf("MQTT PING_UND: %s\n", srvc->ping.unit);
+        Serial.printf("LOC LAT: %f\n", srvc->geo.lat );
+        Serial.printf("LOC LON: %f\n", srvc->geo.lng );
 }
 
 void print_apCfg( struct ap_config const* ap ) {
@@ -169,4 +177,6 @@ void print_apCfg( struct ap_config const* ap ) {
 void print_Calibration( struct acq_cal const* cal ) {
     Serial.printf("CAL [x0,y0]: [%d,%f]\n", cal->val[0].x, cal->val[0].y  );
     Serial.printf("CAL [x1,y1]: [%d,%f]\n", cal->val[1].x, cal->val[1].y  );
+    Serial.printf("SEN_1: %s\n", cal->id_sens_1 );
+    Serial.printf("SEN_2: %s\n", cal->id_sens_2 );
 }

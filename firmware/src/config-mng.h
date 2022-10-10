@@ -81,6 +81,9 @@ struct acq_cal {
         double  y;
         int16_t x;
     } val[2];
+
+    char id_sens_1[16];
+    char id_sens_2[16];
 };
 
 /** Create a structure to hold the configuration data. */

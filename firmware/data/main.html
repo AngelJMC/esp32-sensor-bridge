@@ -185,7 +185,7 @@
                 </div>
                 <div class=form-group>
                     <label for=defaultFormCardEmailEx class="grey-text font-weight-light">Client ID</label>
-                    <input type=text id="c_id" class=form-control placeholder="Client ID">
+                    <input type=text id="c_id" class=form-control placeholder="Client ID" readonly>
                 </div>
 
                 <div class=form-group>
@@ -199,8 +199,8 @@
                 </div>
                 
                 <div class=form-group>
-                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Publish Topic temperature</label>
-                    <input type=text id="pub_topic_temp" class=form-control placeholder="Status Publish Topic" maxlength="63"> 
+                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Publish Topic Sensor</label>
+                    <input type=text id="pub_topic_temp" class=form-control placeholder="Status Publish Topic" maxlength="63" readonly> 
                 </div>
                 
                 <div class=form-group>
@@ -219,8 +219,8 @@
                 </div>
 
                 <div class=form-group>
-                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Publish Topic timestamp</label>
-                    <input type=text id="pub_topic_ping" class=form-control placeholder="Status Publish Topic" maxlength="63"> </div>
+                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Publish Topic Status</label>
+                    <input type=text id="pub_topic_ping" class=form-control placeholder="Status Publish Topic" maxlength="63" readonly> </div>
 
                 
                 <div class=form-group>
@@ -239,17 +239,19 @@
                 </div>
 
                 <div class=form-group>
-                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Subscribe Topic relay 1</label>
-                    <input type=text id="sub_topic_rel1" class=form-control placeholder="Status Publish Topic" maxlength="63"> </div>
-                
-                <div class=form-group>
-                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Subscribe Topic relay 2</label>
-                    <input type=text id="sub_topic_rel2" class=form-control placeholder="Status Publish Topic" maxlength="63"> </div>
-
-                <div class=form-group>
-                    <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Subscribe Topic enable transmission</label>
-                    <input type=text id="sub_topic_en" class=form-control placeholder="Status Publish Topic" maxlength="63"> </div>
-
+                    <label>Location</label>
+                    <div class=row>
+                        <div class=col-md-8>
+                            <input type=text id="loc_lat" class=form-control placeholder="latitude"> 
+                        </div>
+                    </div>
+                    <div class=row>
+                        <div class=col-md-8>
+                            <input type=text id="loc_lon" class=form-control placeholder="longitude"> 
+                        </div>
+                    </div>
+                </div>
+               
                 <div class=form-group>
                     <div class=row>
                         <div class=col-md-12>
@@ -264,7 +266,25 @@
 
             <div id=other class="tab-pane fade">
                 
+
+
+                
+                
                 <div class=form-group>
+                    <label>Select sensor 1</label>
+                    <div class=row>
+                        <div class=col-md-4>
+                            <select class="mdb-select form-control" id="id_sensor_1">
+                                <option value="None">None</option>
+                                <option value="CH4">CH4</option>
+                                <option value="H2S">H2S</option>
+                                <option value="NH3">NH3</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class=form-group>
+                    <label>Calibration</label>
                     <div class=row>
                         <div class=col-md-4>
                             <div class=text-center>
@@ -293,6 +313,21 @@
                             <input type=text id="ocal1" class=form-control placeholder="Ouput" maxlength="5" value=""> 
                         </div>
                     </div>
+
+                </div>
+
+                <div class=form-group>
+                    
+                    <label>Select sensor 2</label>
+                    <div class=row>
+                        <div class=col-md-4>
+                            <select class="mdb-select form-control" id="id_sensor_2">
+                                <option value="None">None</option>
+                                <option value="Temperature">Temperature</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="checkbox">
                         <label><input type="checkbox" id="defaultcal" >Overwrite default calibration</label>
                     </div> 
@@ -455,9 +490,8 @@
                             + "\"ping_tp\":\"" + $("#pub_topic_ping").val()                 + "\","
                             + "\"ping_tm\":"   + $("#interval_ping").val()                  + ","
                             + "\"ping_ud\":\"" + $("#u_interval_ping :selected").text()     + "\","
-                            + "\"rel1_tp\":\"" + $("#sub_topic_rel1").val()                 + "\","
-                            + "\"rel2_tp\":\"" + $("#sub_topic_rel2").val()                 + "\","
-                            + "\"en_tp\":\""   + $("#sub_topic_en").val()                   + "\""
+                            + "\"loc_lat\":\"" + $("#loc_lat").val()                        + "\","
+                            + "\"loc_lon\":\"" + $("#loc_lon").val()                        + "\""
                             + "}"
                     );
 
@@ -487,9 +521,8 @@
                             $("#pub_topic_ping").val(response.ping_tp);
                             $("#interval_ping").val(response.ping_tm);
                             $("#u_interval_ping").val(response.ping_ud)
-                            $("#sub_topic_rel1").val(response.rel1_tp);
-                            $("#sub_topic_rel2").val(response.rel2_tp);
-                            $("#sub_topic_en").val(response.en_tp);
+                            $("#loc_lat").val(response.loc_lat);
+                            $("#loc_lon").val(response.loc_lon);
                         }
                         else {
                             console.log("response empty");
@@ -581,6 +614,8 @@
                             + "\"y0\":"   + $("#ocal0").val()        + ","
                             + "\"x1\":"   + $("#ical1").val()        + ","
                             + "\"y1\":"   + $("#ocal1").val()        + ","
+                            + "\"sen1\":\"" + $("#id_sensor_1 :selected").text()     + "\","
+                            + "\"sen2\":\"" + $("#id_sensor_2 :selected").text()     + "\","
                             + "\"owrite\":" + $("#defaultcal").is(":checked")
                             + "}"
                     );
@@ -600,6 +635,8 @@
                             $("#ocal0").val(response.y0);
                             $("#ical1").val(response.x1);
                             $("#ocal1").val(response.y1);
+                            $("#id_sensor_1").val(response.sen1)
+                            $("#id_sensor_2").val(response.sen2)
                         }
                         else {
                             console.log("response empty");
