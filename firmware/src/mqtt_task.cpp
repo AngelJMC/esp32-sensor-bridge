@@ -16,9 +16,13 @@
 #include "mqtt_task.h"
 #include "time.h"
 #include "uinterface.h"
+#include "json-maker.h"
+
+#include "Wire.h"
+#include "SHT2x.h"
 
 enum {
-    verbose = 2,
+    verbose = 1,
     apAutoStart = 0
 };
 
@@ -30,6 +34,8 @@ struct caleq {
 
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
+
+SHT2x sht;
 
 /*Create a static freertos timer*/
 static TimerHandle_t tmPubMeasurement;
@@ -48,13 +54,79 @@ static struct ctrl_status {
     int enableTemp = false;
 } ctrlStatus;
 
-char jsonstatus[128];
+enum {
+    JSON_TX_SIZE = 300
+};
+
+static char jsonstatus[JSON_TX_SIZE];
 
 enum flags {
     START_AP_WIFI = 1 << 0,
     CONNECT_WIFI  = 1 << 1,
     CONNECT_MQTT  = 1 << 2
 };
+
+static int get_sht20_temperature( double* value ) {
+    if ( !sht.isConnected() )
+        return -1;
+    
+    int error = sht.read();
+    if ( error )
+        return -2;
+
+    *value = sht.getTemperature();
+    return 0;
+}
+
+static int get_sht20_humidity( double* value ) {
+    if ( !sht.isConnected() )
+        return -1;
+    
+    int error = sht.read();
+    if ( error )
+        return -2;
+
+    *value = sht.getHumidity();
+    return 0;
+}
+
+static int get_gas_sensor( double* value ){
+    double raw = board_getadcValue();
+    *value =  eq.m * raw + eq.b;
+    return 0;
+}
+
+
+void init_sht20( void ) {
+    sht.begin();
+    uint8_t stat = sht.getStatus();
+    Serial.printf("SHT2x status: 0x%x\n", stat);
+}
+
+struct sensors{ 
+    char const* id; 
+    int (*getsample)( double* ); 
+    char const* unit;
+};
+
+
+struct source2sensor{ 
+    char const* source; 
+    void (*init)( void );
+    struct sensors const sensors[2];
+    int len;
+} 
+const src2sens[] = {
+    { "Temperature", init_sht20,
+        {{ "temp_air", get_sht20_temperature, "ºC" },
+         { "hum_air", get_sht20_humidity, "%" }}
+        , 2 },
+    { "CH4", board_initadc, {{ "ch4", get_gas_sensor, "ppb" }}, 1 },
+    { "H2S", board_initadc, {{ "h2s", get_gas_sensor, "ppb" }}, 1 },
+    { "NH3", board_initadc, {{ "nh3", get_gas_sensor, "ppb" }}, 1 }
+};
+
+//TODO Add calibration range to structure
 
 /*Print local time and date, used for debugging purposes*/
 static void printLocalTime(){
@@ -113,61 +185,94 @@ static void getCalibrationEquation( struct caleq* eq, double x0, double y0, doub
     }
 }
 
-/*Apply the calibration funtion to an input value.*/
-static double applyCalibration( struct caleq* eq, double x ) {
-    return eq->m * (x-5) + eq->b ;
-} 
+void sensors_init( char const* name ) {
+    for( int i = 0; i < sizeof(src2sens)/sizeof(src2sens[0]); ++i ) {
+        if ( strcmp( name, src2sens[i].source) == 0 ) {
+            src2sens[i].init();
+        }
+    }
+}
 
-/*Format json string with status info.*/
-static void status2json( char* json ) {
+static char* json_measurement( char* dest, struct sensors const* measurement, size_t* remlen ) {                       
+
+    double value = 0;
+    int err = measurement->getsample( &value );
+
+    dest = json_objOpen( dest, measurement->id, remlen ); 
+    dest = json_double( dest, "value", value, remlen ); 
+    /* Add a context object property in a JSON string. */
+    dest = json_objOpen( dest, "context", remlen );
+    dest = json_str( dest, "unit",   measurement->unit , remlen  );
+    dest = json_str( dest, "status", err ? "fail":"ok" , remlen );
+    dest = json_objClose( dest, remlen );
     
-    double batt = 3.7;
-    time_t now;
-    time(&now);
-    sprintf(json,
-        "{ \"timestamp\": %ld, \"batt\": %f }",
-        now,  
-        batt
-    );
-
+    dest = json_objClose( dest, remlen ); 
+    
+    return dest;
 }
 
-static void measurements2json( char* json ) {
-    int16_t raw = getadcValue( );
-    double converted = applyCalibration( &eq, raw );
-    float sensor_value = 1001.1;
-    char const sensor_name[] = "ch4";
-    char const unit[] = "ppb";
-    char const status[] = "ok";
-    time_t now;
-    time(&now);
-    sprintf(json,
-        "{ \"%s\" : { \"value\": %f, \"context\":{ \"unit\": \"%s\", \"status\": \"%s\"}}, \"timestamp\": %" PRIu64 "}",
-        sensor_name,
-        sensor_value,
-        unit,
-        status,
-        (uint64_t)now*1000
-    ); 
+static char* json_sensor( char* dest, char const* name, size_t* remlen ) {
+    for( int i = 0; i < sizeof(src2sens)/sizeof(src2sens[0]); ++i ) {
+        if ( strcmp( name, src2sens[i].source) == 0 ) {
+            for( int j = 0; j < src2sens[i].len; ++j ) { 
+                dest = json_measurement( dest, &src2sens[i].sensors[j], remlen );
+            }
+        }
+    }
+    return dest;
 }
 
-
-static void info2json( char* json ) {
-    //TODO Add GPS 
+static char* json_timestampMs( char* dest, char const* name, size_t* remlen ) {
     time_t now;
-    time(&now);
-    sprintf(json,
-        "{ \"location\" : { \"lat\": %f, \"lng\": %f }, \"timestamp\": %ld }",
-        cfg.service.geo.lat,
-        cfg.service.geo.lng,
-        now
-    ); 
+    time( &now );
+    dest = json_verylong( dest, name, (uint64_t)now*1000, remlen );
+    return dest;
 }
+
+static char* json_location( char* dest, char const* name, size_t* remlen ) {
+    dest = json_objOpen( dest, name, remlen ); 
+    dest = json_double( dest, "lat", cfg.service.geo.lat, remlen );
+    dest = json_double( dest, "lng", cfg.service.geo.lng, remlen );
+    return dest;
+}
+
+enum jsontype {
+    NONE = 0,
+    JSON_MEASUREMENT,
+    JSON_STATUS,
+    JSON_INFO
+};
+
+static void json_frame( char* dest, enum jsontype jsontype ) {
+    size_t remlen = JSON_TX_SIZE;
+    dest = json_objOpen( dest, NULL, &remlen ); 
+    
+    switch ( jsontype ) {
+        case JSON_MEASUREMENT:
+            dest = json_sensor( dest, cfg.cal.id_sens_1, &remlen );
+            dest = json_sensor( dest, cfg.cal.id_sens_2, &remlen );
+        break;
+        case JSON_STATUS:
+            dest = json_double( dest, "batt", 3.7, &remlen ); 
+        break;
+        case JSON_INFO:
+            dest = json_location( dest, "location", &remlen );
+        break;
+        default:
+            Serial.print("error, undefined json type\n");
+        break;
+    }
+    
+    dest = json_timestampMs( dest, "timestamp", &remlen );
+    dest = json_objClose( dest, &remlen ); 
+    json_end( dest, &remlen );
+}
+
 
 /*Callback function used to pusblish measurement on the mqtt topic*/
 static void pubMeasurement_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
-    measurements2json( jsonstatus );
+    json_frame( jsonstatus, JSON_MEASUREMENT );
     client.publish( sc->temp.topic, jsonstatus);
     Serial.printf("Publishing measurements %s\n", jsonstatus);          
 }
@@ -175,7 +280,7 @@ static void pubMeasurement_callback( TimerHandle_t xTimer ) {
 /*Callback function used to pusblish status on the mqtt topic*/
 static void pubStatus_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
-    status2json( jsonstatus );
+    json_frame( jsonstatus, JSON_STATUS );
     client.publish( sc->ping.topic, jsonstatus );
     Serial.printf("Publishing status %s\n", jsonstatus);
     
@@ -187,19 +292,11 @@ static void pubStatus_callback( TimerHandle_t xTimer ) {
 /*Callback function used to pusblish info on the mqtt topic*/
 static void pubInfo_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
-    info2json( jsonstatus );
+    json_frame( jsonstatus, JSON_INFO );
     client.publish( sc->temp.topic, jsonstatus);
-    Serial.printf("Publishing info %s\n", jsonstatus);          
+    Serial.printf("Publishing info %s\n", jsonstatus);
+    xTimerStop( tmPubInfo, 100 );         
 }
-
-/*Funtion to convert byte* to char* */
-static void byteToChar(char* dest, byte* src, int len) {
-    for (int i = 0; i < len; i++) {
-        dest[i] = src[i];
-    }
-    dest[len] = '\0';
-}
-
 
 /*Test the status of the Wifi connection and attempt reconnection if it fails.*/
 static bool testWifi( void ) {
@@ -225,22 +322,6 @@ static bool testWifi( void ) {
     return false;
 }
 
-/*Get the publishing period of the topic from the topic configuration structure. 
-The publishing period is returned milliseconds. Return -1 is configuration is not correct*/
-static int getupdatePeriod( struct pub_topic const* tp ) {
-    struct { char const* unit; int factor; } const units[] = {
-        { "Second", 1 * 1000 },
-        { "Minute", 60 * 1000 },
-        { "Hour", 60 * 60 * 1000}
-    };
-
-    for( int i = 0; i < sizeof(units)/sizeof(units[0]); ++i ) {
-        if ( strcmp( tp->unit, units[i].unit ) == 0 ) {
-            return tp->period * units[i].factor;
-        }
-    }
-    return -1;
-}
 
 /*Enter in the configuration mode: enable wifi access point and webserver.*/
 void ctrl_enterConfigMode( void ) {
@@ -279,6 +360,8 @@ void ctrl_task( void * parameter ) {
     events = xEventGroupCreate();
     EventBits_t bitfied = xEventGroupSetBits( events, START_AP_WIFI | CONNECT_WIFI );
 
+    sensors_init( cfg.cal.id_sens_1 );
+    sensors_init( cfg.cal.id_sens_2 );
 
     for(;;){ 
         
@@ -376,7 +459,7 @@ void ctrl_task( void * parameter ) {
                 //xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.ping )), 100 );
                 xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( 20000), 100 );
                 xTimerStart( tmPubStatus, 100 );
-                xTimerChangePeriod( tmPubInfo, pdMS_TO_TICKS( 30000 ), 100 );
+                xTimerChangePeriod( tmPubInfo, pdMS_TO_TICKS( 5000 ), 100 );
                 xTimerStart( tmPubStatus, 100 );
                 
                 if (verbose ) {

@@ -9,6 +9,7 @@
 #include "Arduino.h"
 #include "FreeRTOS.h"
 #include "config-mng.h"
+#include "adc121.h"
 
 /*Create a static freertos timer*/
 static TimerHandle_t tmledMode;
@@ -110,17 +111,28 @@ void interface_setState( enum modes mode ) {
 }
 
 
-int16_t getadcValue( void ) {
+int board_getadcValue( void ) {
     uint32_t adc_reading = 0;
     enum {
-        NO_OF_SAMPLES = 64
+        NO_OF_SAMPLES = 32
     };
 
     for (int i = 0; i < NO_OF_SAMPLES; i++) {
-        adc_reading += analogRead(SENS); 
+        int16_t raw = 0;
+        int err = adc121_getval( &raw );
+        if ( err ) {
+            Serial.printf("Error reading adc121\n");
+            return 0;
+        }
+        //Serial.printf("%d,", adc_reading );
+        adc_reading += raw;
     }
     
     return adc_reading / NO_OF_SAMPLES;
+}
+
+void board_initadc( void ) {
+    adc121_init( );
 }
 
 

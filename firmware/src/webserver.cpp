@@ -279,7 +279,7 @@ void webserver_task( void * parameter ) {
     /*Send json with sensor sample*/
     server.on("/sample", HTTP_GET, [](AsyncWebServerRequest * request) {
         DynamicJsonDocument json( 32 );
-        json["adcval"]    = getadcValue( );
+        json["adcval"]    = board_getadcValue( );
 
         String content;
         serializeJson(json, content);

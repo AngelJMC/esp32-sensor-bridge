@@ -19,7 +19,7 @@ enum {
     SENS   = 34,
     LED1   = 0,
     LED2   = 15,
-    SWITCH = 4 
+    SWITCH = 2 
 };
 
 /*Led status modes*/
@@ -45,7 +45,9 @@ void interface_setState( enum modes mode );
 
 /**
  * @brief This function reads some ADC acquisitions and return the filtered value. */
-int16_t getadcValue( void );
+int board_getadcValue( void );
+
+void board_initadc( void );
 
 /**
  * @brief This function does a factory reset of the device. */

@@ -58,7 +58,7 @@ struct service_config {
     char host_ip[64];
     uint16_t port;
     char client_id[32];
-    char username[32];
+    char username[64];
     char password[32];
     struct pub_topic temp;
     struct pub_topic ping;

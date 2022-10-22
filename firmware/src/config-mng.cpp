@@ -48,7 +48,6 @@ static void setdefault( struct config* cfg ) {
     strcpy( cfg->wifi.mode, "dhcp" );
     strcpy( cfg->ntp.host, "pool.ntp.org");
 
-    //strcpy(cfg->service.client_id, "a16c41bc003e");
     strgetclientid( cfg->service.client_id );
     strcpy( cfg->service.host_ip, "industrial.api.ubidots.com");
     cfg->service.port = 1883;
