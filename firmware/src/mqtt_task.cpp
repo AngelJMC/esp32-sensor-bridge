@@ -233,6 +233,7 @@ static char* json_location( char* dest, char const* name, size_t* remlen ) {
     dest = json_objOpen( dest, name, remlen ); 
     dest = json_double( dest, "lat", cfg.service.geo.lat, remlen );
     dest = json_double( dest, "lng", cfg.service.geo.lng, remlen );
+    dest = json_objClose( dest, remlen ); 
     return dest;
 }
 
@@ -246,6 +247,7 @@ enum jsontype {
 static void json_frame( char* dest, enum jsontype jsontype ) {
     size_t remlen = JSON_TX_SIZE;
     dest = json_objOpen( dest, NULL, &remlen ); 
+    dest = json_timestampMs( dest, "timestamp", &remlen );
     
     switch ( jsontype ) {
         case JSON_MEASUREMENT:
@@ -263,15 +265,32 @@ static void json_frame( char* dest, enum jsontype jsontype ) {
         break;
     }
     
-    dest = json_timestampMs( dest, "timestamp", &remlen );
     dest = json_objClose( dest, &remlen ); 
     json_end( dest, &remlen );
 }
 
+/*Get the publishing period of the topic from the topic configuration structure. 
+The publishing period is returned milliseconds. Return -1 is configuration is not correct*/
+static int getupdatePeriod( struct pub_topic const* tp ) {
+    struct { char const* unit; int factor; } const units[] = {
+        { "Second", 1 * 1000 },
+        { "Minute", 60 * 1000 },
+        { "Hour", 60 * 60 * 1000}
+    };
+
+    for( int i = 0; i < sizeof(units)/sizeof(units[0]); ++i ) {
+        if ( strcmp( tp->unit, units[i].unit ) == 0 ) {
+            return tp->period * units[i].factor;
+        }
+    }
+    return -1;
+}
 
 /*Callback function used to pusblish measurement on the mqtt topic*/
 static void pubMeasurement_callback( TimerHandle_t xTimer ) {
+    
     struct service_config const* sc = &scfg;
+    xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.temp )), 100 );
     json_frame( jsonstatus, JSON_MEASUREMENT );
     client.publish( sc->temp.topic, jsonstatus);
     Serial.printf("Publishing measurements %s\n", jsonstatus);          
@@ -280,6 +299,7 @@ static void pubMeasurement_callback( TimerHandle_t xTimer ) {
 /*Callback function used to pusblish status on the mqtt topic*/
 static void pubStatus_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
+    xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.ping )), 100 );
     json_frame( jsonstatus, JSON_STATUS );
     client.publish( sc->ping.topic, jsonstatus );
     Serial.printf("Publishing status %s\n", jsonstatus);
@@ -292,6 +312,7 @@ static void pubStatus_callback( TimerHandle_t xTimer ) {
 /*Callback function used to pusblish info on the mqtt topic*/
 static void pubInfo_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
+    xTimerStop( tmPubInfo, 100 );  
     json_frame( jsonstatus, JSON_INFO );
     client.publish( sc->temp.topic, jsonstatus);
     Serial.printf("Publishing info %s\n", jsonstatus);
@@ -453,13 +474,11 @@ void ctrl_task( void * parameter ) {
             
             Serial.println("Attempting MQTT connection...");
             if ( client.connect( scfg.client_id, scfg.username, scfg.password ) ) {                
-                
-                xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( 10000), 100 );
-                xTimerStart( tmPubMeasurement, 100 );
-                //xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.ping )), 100 );
-                xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( 20000), 100 );
-                xTimerStart( tmPubStatus, 100 );
                 xTimerChangePeriod( tmPubInfo, pdMS_TO_TICKS( 5000 ), 100 );
+                xTimerStart( tmPubStatus, 100 );
+                xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( 10000 ), 100 );
+                xTimerStart( tmPubMeasurement, 100 );
+                xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( 15000 ), 100 );
                 xTimerStart( tmPubStatus, 100 );
                 
                 if (verbose ) {
