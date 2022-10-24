@@ -124,7 +124,6 @@ int board_getadcValue( void ) {
             Serial.printf("Error reading adc121\n");
             return 0;
         }
-        //Serial.printf("%d,", adc_reading );
         adc_reading += raw;
     }
     

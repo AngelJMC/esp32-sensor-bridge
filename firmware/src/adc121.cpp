@@ -20,12 +20,7 @@ enum {
 
 static unsigned int adcval;    
 
-static double mapf(double val, double in_min, double in_max, double out_min, double out_max) {
-    
-    val = val < in_min ? in_min : val;
-    val = val > in_max ? in_max : val;
-    return (val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
+
 
 int adc121_getval( int16_t* value ) {
     int16_t adcval = 0;

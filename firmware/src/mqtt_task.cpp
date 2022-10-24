@@ -66,7 +66,24 @@ enum flags {
     CONNECT_MQTT  = 1 << 2
 };
 
-static int get_sht20_temperature( double* value ) {
+struct sensors{ 
+    char const* id; 
+    int (*getsample)( struct sensors const*, double* ); 
+    char const* unit;
+    struct {
+        double min;
+        double max;
+    } const range;
+};
+
+static double mapf(double val, double in_min, double in_max, double out_min, double out_max) {
+    
+    val = val < in_min ? in_min : val;
+    val = val > in_max ? in_max : val;
+    return (val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+static int get_sht20_temperature( struct sensors const* self, double* value ) {
     if ( !sht.isConnected() )
         return -1;
     
@@ -78,7 +95,7 @@ static int get_sht20_temperature( double* value ) {
     return 0;
 }
 
-static int get_sht20_humidity( double* value ) {
+static int get_sht20_humidity( struct sensors const* self, double* value ) {
     if ( !sht.isConnected() )
         return -1;
     
@@ -90,9 +107,11 @@ static int get_sht20_humidity( double* value ) {
     return 0;
 }
 
-static int get_gas_sensor( double* value ){
+static int get_gas_sensor( struct sensors const* self, double* value ){
     double raw = board_getadcValue();
-    *value =  eq.m * raw + eq.b;
+    double cali =  eq.m * raw + eq.b;
+    *value = mapf( cali, 4.0, 20.0, self->range.min, self->range.max );
+    Serial.printf("%s: %f -> %f -> %f %s\n", self->id, raw, cali, *value, self->unit );
     return 0;
 }
 
@@ -103,11 +122,6 @@ void init_sht20( void ) {
     Serial.printf("SHT2x status: 0x%x\n", stat);
 }
 
-struct sensors{ 
-    char const* id; 
-    int (*getsample)( double* ); 
-    char const* unit;
-};
 
 
 struct source2sensor{ 
@@ -121,12 +135,11 @@ const src2sens[] = {
         {{ "temp_air", get_sht20_temperature, "ºC" },
          { "hum_air", get_sht20_humidity, "%" }}
         , 2 },
-    { "CH4", board_initadc, {{ "ch4", get_gas_sensor, "ppb" }}, 1 },
-    { "H2S", board_initadc, {{ "h2s", get_gas_sensor, "ppb" }}, 1 },
-    { "NH3", board_initadc, {{ "nh3", get_gas_sensor, "ppb" }}, 1 }
+    { "CH4", board_initadc, {{ "ch4", get_gas_sensor, "ppm", { 0.0, 100.0} }}, 1 },
+    { "H2S", board_initadc, {{ "h2s", get_gas_sensor, "ppm", { 0.0, 10.0} }}, 1 },
+    { "NH3", board_initadc, {{ "nh3", get_gas_sensor, "ppm", { 0.0, 100.0} }}, 1 }
 };
 
-//TODO Add calibration range to structure
 
 /*Print local time and date, used for debugging purposes*/
 static void printLocalTime(){
@@ -196,7 +209,7 @@ void sensors_init( char const* name ) {
 static char* json_measurement( char* dest, struct sensors const* measurement, size_t* remlen ) {                       
 
     double value = 0;
-    int err = measurement->getsample( &value );
+    int err = measurement->getsample( measurement, &value );
 
     dest = json_objOpen( dest, measurement->id, remlen ); 
     dest = json_double( dest, "value", value, remlen ); 
