@@ -200,16 +200,16 @@
                 
                 <div class=form-group>
                     <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Publish Topic Sensor</label>
-                    <input type=text id="pub_topic_temp" class=form-control placeholder="Status Publish Topic" maxlength="63" readonly> 
+                    <input type=text id="meas_topic" class=form-control placeholder="Status Publish Topic" maxlength="63" readonly> 
                 </div>
                 
                 <div class=form-group>
                     <label>Upload Interval</label>
                     <div class=row>
                         <div class=col-md-4>
-                            <input type=text id="interval_temp" class=form-control placeholder="number"> </div>
+                            <input type=text id="meas_period" class=form-control placeholder="number"> </div>
                         <div class=col-md-8>
-                            <select class="mdb-select form-control" id="u_interval_temp">
+                            <select class="mdb-select form-control" id="meas_unit">
                                 <option value="Second">Second</option>
                                 <option value="Minute">Minute</option>
                                 <option value="Hour">Hour</option>
@@ -220,16 +220,16 @@
 
                 <div class=form-group>
                     <label for=defaultFormCardEmailEx class="grey-text font-weight-light"> Publish Topic Status</label>
-                    <input type=text id="pub_topic_ping" class=form-control placeholder="Status Publish Topic" maxlength="63" readonly> </div>
+                    <input type=text id="status_topic" class=form-control placeholder="Status Publish Topic" maxlength="63" readonly> </div>
 
                 
                 <div class=form-group>
                     <label>Upload Interval</label>
                     <div class=row>
                         <div class=col-md-4>
-                            <input type=text id="interval_ping" class=form-control placeholder="number"> </div>
+                            <input type=text id="status_period" class=form-control placeholder="number"> </div>
                         <div class=col-md-8>
-                            <select class="mdb-select form-control" id="u_interval_ping">
+                            <select class="mdb-select form-control" id="status_unit">
                                 <option value="Second">Second</option>
                                 <option value="Minute">Minute</option>
                                 <option value="Hour">Hour</option>
@@ -479,19 +479,19 @@
 
                 function getServiceData() {
                     let param = encodeURIComponent(
-                        "{\"host\":\""     + $("#hipadd").val()                         + "\","
-                            + "\"port\":"      + $("#port").val()                           + ","
-                            + "\"id\":\""      + $("#c_id").val()                           + "\","
-                            + "\"user\":\""    + $("#U_name").val()                         + "\","
-                            + "\"pass\":\""    + $("#s_pass").val()                         + "\","
-                            + "\"temp_tp\":\"" + $("#pub_topic_temp").val()                 + "\","
-                            + "\"temp_tm\":"   + $("#interval_temp").val()                  + ","
-                            + "\"temp_ud\":\"" + $("#u_interval_temp :selected").text()     + "\","
-                            + "\"ping_tp\":\"" + $("#pub_topic_ping").val()                 + "\","
-                            + "\"ping_tm\":"   + $("#interval_ping").val()                  + ","
-                            + "\"ping_ud\":\"" + $("#u_interval_ping :selected").text()     + "\","
-                            + "\"loc_lat\":\"" + $("#loc_lat").val()                        + "\","
-                            + "\"loc_lon\":\"" + $("#loc_lon").val()                        + "\""
+                        "{\"host\":\""     + $("#hipadd").val()                       + "\","
+                            + "\"port\":"      + $("#port").val()                     + ","
+                            + "\"id\":\""      + $("#c_id").val()                     + "\","
+                            + "\"user\":\""    + $("#U_name").val()                   + "\","
+                            + "\"pass\":\""    + $("#s_pass").val()                   + "\","
+                            + "\"meas_tp\":\"" + $("#meas_topic").val()               + "\","
+                            + "\"meas_tm\":"   + $("#meas_period").val()              + ","
+                            + "\"meas_un\":\"" + $("#meas_unit :selected").text()     + "\","
+                            + "\"stat_tp\":\"" + $("#status_topic").val()             + "\","
+                            + "\"stat_tm\":"   + $("#status_period").val()            + ","
+                            + "\"stat_un\":\"" + $("#status_unit :selected").text()   + "\","
+                            + "\"loc_lat\":\"" + $("#loc_lat").val()                  + "\","
+                            + "\"loc_lon\":\"" + $("#loc_lon").val()                  + "\""
                             + "}"
                     );
 
@@ -515,12 +515,12 @@
                             $("#c_id").val(response.id);
                             $("#U_name").val(response.user);
                             $("#s_pass").val(response.pass);
-                            $("#pub_topic_temp").val(response.temp_tp);
-                            $("#interval_temp").val(response.temp_tm);
-                            $("#u_interval_temp").val(response.temp_ud)
-                            $("#pub_topic_ping").val(response.ping_tp);
-                            $("#interval_ping").val(response.ping_tm);
-                            $("#u_interval_ping").val(response.ping_ud)
+                            $("#meas_topic").val(response.meas_tp);
+                            $("#meas_period").val(response.meas_tm);
+                            $("#meas_unit").val(response.meas_un)
+                            $("#status_topic").val(response.stat_tp);
+                            $("#status_period").val(response.stat_tm);
+                            $("#status_unit").val(response.stat_un)
                             $("#loc_lat").val(response.loc_lat);
                             $("#loc_lon").val(response.loc_lon);
                         }

@@ -303,18 +303,18 @@ static int getupdatePeriod( struct pub_topic const* tp ) {
 static void pubMeasurement_callback( TimerHandle_t xTimer ) {
     
     struct service_config const* sc = &scfg;
-    xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.temp )), 100 );
+    xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.measures )), 100 );
     json_frame( jsonstatus, JSON_MEASUREMENT );
-    client.publish( sc->temp.topic, jsonstatus);
+    client.publish( sc->measures.topic, jsonstatus);
     Serial.printf("Publishing measurements %s\n", jsonstatus);          
 }
 
 /*Callback function used to pusblish status on the mqtt topic*/
 static void pubStatus_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
-    xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.ping )), 100 );
+    xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.status )), 100 );
     json_frame( jsonstatus, JSON_STATUS );
-    client.publish( sc->ping.topic, jsonstatus );
+    client.publish( sc->status.topic, jsonstatus );
     Serial.printf("Publishing status %s\n", jsonstatus);
     
     if( verbose ) {
@@ -327,9 +327,8 @@ static void pubInfo_callback( TimerHandle_t xTimer ) {
     struct service_config const* sc = &scfg;
     xTimerStop( tmPubInfo, 100 );  
     json_frame( jsonstatus, JSON_INFO );
-    client.publish( sc->temp.topic, jsonstatus);
+    client.publish( sc->info.topic, jsonstatus);
     Serial.printf("Publishing info %s\n", jsonstatus);
-    xTimerStop( tmPubInfo, 100 );         
 }
 
 /*Test the status of the Wifi connection and attempt reconnection if it fails.*/

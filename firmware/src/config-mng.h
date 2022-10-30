@@ -33,9 +33,7 @@ struct pub_topic {
     char unit[16];
 };
 
-struct sub_topic {
-    char topic[64];
-};
+
 
 struct wifi_config {
     char ssid[32];
@@ -60,8 +58,9 @@ struct service_config {
     char client_id[32];
     char username[64];
     char password[32];
-    struct pub_topic temp;
-    struct pub_topic ping;
+    struct pub_topic measures;
+    struct pub_topic status;
+    struct pub_topic info;
     struct location{
         double lat;
         double lng;

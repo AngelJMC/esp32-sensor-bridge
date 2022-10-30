@@ -245,12 +245,12 @@ void webserver_task( void * parameter ) {
         json["id"]      = std::string(cfg.service.client_id, strlen(cfg.service.client_id));
         json["user"]    = std::string(cfg.service.username, strlen(cfg.service.username));
         json["pass"]    = std::string(cfg.service.password, strlen(cfg.service.password));  
-        json["temp_tp"] = std::string(cfg.service.temp.topic, strlen(cfg.service.temp.topic));
-        json["temp_tm"] = cfg.service.temp.period;
-        json["temp_ud"] = std::string(cfg.service.temp.unit, strlen(cfg.service.temp.unit));
-        json["ping_tp"] = std::string(cfg.service.ping.topic, strlen(cfg.service.ping.topic));
-        json["ping_tm"] = cfg.service.ping.period;
-        json["ping_ud"] = std::string(cfg.service.ping.unit, strlen(cfg.service.ping.unit));
+        json["meas_tp"] = std::string(cfg.service.measures.topic, strlen(cfg.service.measures.topic));
+        json["meas_tm"] = cfg.service.measures.period;
+        json["meas_un"] = std::string(cfg.service.measures.unit, strlen(cfg.service.measures.unit));
+        json["stat_tp"] = std::string(cfg.service.status.topic, strlen(cfg.service.status.topic));
+        json["stat_tm"] = cfg.service.status.period;
+        json["stat_un"] = std::string(cfg.service.status.unit, strlen(cfg.service.status.unit));
         json["loc_lat"] = cfg.service.geo.lat;
         json["loc_lon"] = cfg.service.geo.lng;
 
@@ -425,12 +425,12 @@ void webserver_task( void * parameter ) {
         if (root.containsKey("id"))       strcpy(cfg.service.client_id, root["id"]);
         if (root.containsKey("user"))     strcpy(cfg.service.username, root["user"]);
         if (root.containsKey("pass"))     strcpy(cfg.service.password, root["pass"]);
-        if (root.containsKey("temp_tp"))  strcpy(cfg.service.temp.topic, root["temp_tp"]);
-        if (root.containsKey("temp_tm"))  cfg.service.temp.period = root["temp_tm"];
-        if (root.containsKey("temp_ud"))  strcpy(cfg.service.temp.unit, root["temp_ud"]);
-        if (root.containsKey("ping_tp"))  strcpy(cfg.service.ping.topic, root["ping_tp"]); 
-        if (root.containsKey("ping_tm"))  cfg.service.ping.period = root["ping_tm"];
-        if (root.containsKey("ping_ud"))  strcpy(cfg.service.ping.unit, root["ping_ud"]);
+        if (root.containsKey("meas_tp"))  strcpy(cfg.service.measures.topic, root["meas_tp"]);
+        if (root.containsKey("meas_tm"))  cfg.service.measures.period = root["meas_tm"];
+        if (root.containsKey("meas_un"))  strcpy(cfg.service.measures.unit, root["meas_un"]);
+        if (root.containsKey("stat_tp"))  strcpy(cfg.service.status.topic, root["stat_tp"]); 
+        if (root.containsKey("stat_tm"))  cfg.service.status.period = root["stat_tm"];
+        if (root.containsKey("stat_un"))  strcpy(cfg.service.status.unit, root["stat_un"]);
         if (root.containsKey("loc_lat"))  cfg.service.geo.lat = root["loc_lat"];
         if (root.containsKey("loc_lon"))  cfg.service.geo.lng = root["loc_lon"];
 

@@ -37,13 +37,13 @@ static void setdefault( struct config* cfg ) {
     memset( cfg, 0 , sizeof( struct config));
     
     strgetname( cfg->ap.ssid, "Logger_4-20mA" );
-    strcpy( cfg->ap.pass, "Kmf5cyJUWw" );
+    strcpy( cfg->ap.pass, "3Qd400Ak&1i8" );
     
     struct ip addr = { 192,168,4,1 };
     memcpy( &cfg->ap.addr, &addr, sizeof( addr));
 
-    strcpy( cfg->ap.web_user, "supervisor" );
-    strcpy( cfg->ap.web_pass, "fEVcCQxig6" );
+    strcpy( cfg->ap.web_user, "admin" );
+    strcpy( cfg->ap.web_pass, "Y32Pv9RY" );
 
     strcpy( cfg->wifi.mode, "dhcp" );
     strcpy( cfg->ntp.host, "pool.ntp.org");
@@ -51,14 +51,18 @@ static void setdefault( struct config* cfg ) {
     strgetclientid( cfg->service.client_id );
     strcpy( cfg->service.host_ip, "industrial.api.ubidots.com");
     cfg->service.port = 1883;
-    sprintf(cfg->service.temp.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
-    sprintf(cfg->service.ping.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
     
-    cfg->service.temp.period = 20;
-    strcpy( cfg->service.temp.unit, "Second" );
+    sprintf(cfg->service.measures.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
+    cfg->service.measures.period = 20;
+    strcpy( cfg->service.measures.unit, "Second" );
+    
+    sprintf(cfg->service.status.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
+    cfg->service.status.period = 1;
+    strcpy( cfg->service.status.unit, "Minute" );
 
-    cfg->service.ping.period = 1;
-    strcpy( cfg->service.ping.unit, "Minute" );
+    sprintf(cfg->service.info.topic, "%s/%s", "/v2.0/devices", cfg->service.client_id ) ;
+    cfg->service.info.period = 0;
+    strcpy( cfg->service.info.unit, "Second" );
 
     cfg->cal = cal;
 }
@@ -157,12 +161,12 @@ void print_ServiceCfg( struct service_config const* srvc ) {
         Serial.printf("MQTT CLIENT_ID: %s\n", srvc->client_id);
         Serial.printf("MQTT USER: %s\n", srvc->username);
         Serial.printf("MQTT PASS: %s\n", srvc->password);
-        Serial.printf("MQTT TEMP_TOPIC: %s\n", srvc->temp.topic);
-        Serial.printf("MQTT TEMP_INTER: %d\n", srvc->temp.period);
-        Serial.printf("MQTT TEMP_UND: %s\n", srvc->temp.unit);
-        Serial.printf("MQTT PING_TOPIC: %s\n", srvc->ping.topic);
-        Serial.printf("MQTT PING_INTER: %d\n", srvc->ping.period);
-        Serial.printf("MQTT PING_UND: %s\n", srvc->ping.unit);
+        Serial.printf("MQTT TEMP_TOPIC: %s\n", srvc->measures.topic);
+        Serial.printf("MQTT TEMP_INTER: %d\n", srvc->measures.period);
+        Serial.printf("MQTT TEMP_UND: %s\n", srvc->measures.unit);
+        Serial.printf("MQTT PING_TOPIC: %s\n", srvc->status.topic);
+        Serial.printf("MQTT PING_INTER: %d\n", srvc->status.period);
+        Serial.printf("MQTT PING_UND: %s\n", srvc->status.unit);
         Serial.printf("LOC LAT: %f\n", srvc->geo.lat );
         Serial.printf("LOC LON: %f\n", srvc->geo.lng );
 }
