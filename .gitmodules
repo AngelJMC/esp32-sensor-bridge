@@ -1,0 +1,3 @@
+[submodule "firmware/lib/json-maker"]
+	path = firmware/lib/json-maker
+	url = https://github.com/AngelJMC/json-maker
