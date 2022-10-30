@@ -18,10 +18,6 @@ enum {
     ADDR_ADC121       = 0x51,
 };
 
-static unsigned int adcval;    
-
-
-
 int adc121_getval( int16_t* value ) {
     int16_t adcval = 0;
     Wire.beginTransmission( ADDR_ADC121 );        // transmit to device

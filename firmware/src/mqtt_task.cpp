@@ -16,7 +16,7 @@
 #include "mqtt_task.h"
 #include "time.h"
 #include "uinterface.h"
-#include "json-maker.h"
+#include "json-maker/json-maker.h"
 
 #include "Wire.h"
 #include "SHT2x.h"
