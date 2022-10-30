@@ -41,8 +41,8 @@ If you want to modify the source code or program your devices, it is highly reco
 
  1. Build and Upload Filesystem Image to your ESP32
  2. Build and Upload program code.
- 3. Connect mobile or PC with hotspot: Logger_4-20mA_XXXX. Password: Kmf5cyJUWw
- 4. Go to web browser and hit 192.168.4.1. Use the credential supervisor/fEVcCQxig to enter.
+ 3. Connect mobile or PC with hotspot: Logger_4-20mA_XXXX. Password: Vd4WD619Uemi
+ 4. Go to web browser and hit 192.168.4.1. Use the credential admin/Y32Pv9RY to enter.
  5. Go to Network section and scan for your wifi network, write password and static network configuration if you want, hit apply.
  6. Go to Service section give necessary server credential for MQTT and set the pub/sub topic names.
  7. Go to Other section if you need calibrate the 4-20mA acquisition electronic.
