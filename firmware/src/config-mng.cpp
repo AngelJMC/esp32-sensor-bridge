@@ -37,7 +37,7 @@ static void setdefault( struct config* cfg ) {
     memset( cfg, 0 , sizeof( struct config));
     
     strgetname( cfg->ap.ssid, "Logger_4-20mA" );
-    strcpy( cfg->ap.pass, "3Qd400Ak&1i8" );
+    strcpy( cfg->ap.pass, "Vd4WD619Uemi" );
     
     struct ip addr = { 192,168,4,1 };
     memcpy( &cfg->ap.addr, &addr, sizeof( addr));
