@@ -132,6 +132,7 @@ int board_getadcValue( void ) {
 
 void board_initadc( void ) {
     adc121_init( );
+    Serial.println("Init adc...");
 }
 
 

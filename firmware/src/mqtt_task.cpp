@@ -472,7 +472,8 @@ void ctrl_task( void * parameter ) {
 
         /*Connect to the MQTT broker and NTP server */
         bool const updateserv = webserver_isServiceUpdated( );
-        if( (bitfied & CONNECT_MQTT) || updateserv ) {
+        bool const iscfgmode = ctrl_isConfigModeEnable();
+        if( ((bitfied & CONNECT_MQTT) || updateserv) && !iscfgmode ) {
             
             memcpy( &scfg, &cfg.service, sizeof(cfg.service) );
             if( scfg.host_ip[0] == 0 || scfg.client_id == 0 ) {
@@ -487,7 +488,7 @@ void ctrl_task( void * parameter ) {
             Serial.println("Attempting MQTT connection...");
             if ( client.connect( scfg.client_id, scfg.username, scfg.password ) ) {                
                 xTimerChangePeriod( tmPubInfo, pdMS_TO_TICKS( 5000 ), 100 );
-                xTimerStart( tmPubStatus, 100 );
+                xTimerStart( tmPubInfo, 100 );
                 xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( 10000 ), 100 );
                 xTimerStart( tmPubMeasurement, 100 );
                 xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( 15000 ), 100 );

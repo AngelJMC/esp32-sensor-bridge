@@ -347,7 +347,6 @@ void webserver_task( void * parameter ) {
 
 
         JsonObject root = doc.as<JsonObject>();
-        memset( &cfg.ntp, 0, sizeof( cfg.ntp ) );
         if (root.containsKey("host"))  strcpy(cfg.ntp.host, root["host"]);
         if (root.containsKey("port"))  cfg.ntp.port = root["port"];
         
@@ -419,7 +418,6 @@ void webserver_task( void * parameter ) {
             return;
         }
 
-        memset( &cfg.service, 0, sizeof( cfg.service ) );
         if (root.containsKey("host"))     strcpy(cfg.service.host_ip, root["host"]);
         if (root.containsKey("port"))     cfg.service.port = root["port"];
         if (root.containsKey("id"))       strcpy(cfg.service.client_id, root["id"]);
