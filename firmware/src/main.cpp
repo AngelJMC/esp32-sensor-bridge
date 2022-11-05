@@ -101,7 +101,7 @@ void setup() {
     tmswitch = xTimerCreate( "tmSwitch",   pdMS_TO_TICKS( 250 ), pdTRUE, NULL, switch_callback );
     interface_init( );
     // Now set up two Tasks to run independently.
-    xTaskCreate( webserver_task , "webserver-task",  1024*10  ,NULL  ,  3,  NULL );
+    xTaskCreate( webserver_task , "webserver-task",  1024*10  ,NULL  ,  2,  NULL );
     xTaskCreate( ctrl_task ,      "ctrl-task",       1024*3   ,NULL  ,  1,  NULL );
 
 }

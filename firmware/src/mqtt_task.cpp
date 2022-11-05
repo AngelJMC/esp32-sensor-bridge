@@ -19,7 +19,7 @@
 #include "json-maker/json-maker.h"
 
 #include "Wire.h"
-#include "SHT2x.h"
+#include "SHTSensor.h"
 
 enum {
     verbose = 1,
@@ -35,7 +35,7 @@ struct caleq {
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
 
-SHT2x sht;
+SHTSensor sht;
 
 /*Create a static freertos timer*/
 static TimerHandle_t tmPubMeasurement;
@@ -55,7 +55,7 @@ static struct ctrl_status {
 } ctrlStatus;
 
 enum {
-    JSON_TX_SIZE = 300
+    JSON_TX_SIZE = 512
 };
 
 static char jsonstatus[JSON_TX_SIZE];
@@ -63,7 +63,10 @@ static char jsonstatus[JSON_TX_SIZE];
 enum flags {
     START_AP_WIFI = 1 << 0,
     CONNECT_WIFI  = 1 << 1,
-    CONNECT_MQTT  = 1 << 2
+    CONNECT_MQTT  = 1 << 2,
+    PUB_INFO      = 1 << 3,
+    PUB_STATUS    = 1 << 4,
+    PUB_MEASURES  = 1 << 5
 };
 
 struct sensors{ 
@@ -83,25 +86,20 @@ static double mapf(double val, double in_min, double in_max, double out_min, dou
     return (val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-static int get_sht20_temperature( struct sensors const* self, double* value ) {
-    if ( !sht.isConnected() )
+static int get_sht3x_temperature( struct sensors const* self, double* value ) {
+
+    int st = sht.readSample();
+    if ( st == 0 )
         return -1;
-    
-    int error = sht.read();
-    if ( error )
-        return -2;
 
     *value = sht.getTemperature();
     return 0;
 }
 
-static int get_sht20_humidity( struct sensors const* self, double* value ) {
-    if ( !sht.isConnected() )
+static int get_sht3x_humidity( struct sensors const* self, double* value ) {
+    int st = sht.readSample();
+    if ( st == 0 )
         return -1;
-    
-    int error = sht.read();
-    if ( error )
-        return -2;
 
     *value = sht.getHumidity();
     return 0;
@@ -116,10 +114,13 @@ static int get_gas_sensor( struct sensors const* self, double* value ){
 }
 
 
-void init_sht20( void ) {
-    sht.begin();
-    uint8_t stat = sht.getStatus();
-    Serial.printf("SHT2x status: 0x%x\n", stat);
+void init_sht3x( void ) {
+    if (sht.init()) {
+        Serial.print("init(): success\n");
+    } else {
+        Serial.print("init(): failed\n");
+    }
+    sht.setAccuracy(SHTSensor::SHT_ACCURACY_MEDIUM); // only supported by SHT3x
 }
 
 
@@ -131,9 +132,9 @@ struct source2sensor{
     int len;
 } 
 const src2sens[] = {
-    { "Temperature", init_sht20,
-        {{ "temp_air", get_sht20_temperature, "ºC" },
-         { "hum_air", get_sht20_humidity, "%" }}
+    { "Temperature", init_sht3x,
+        {{ "temp_air", get_sht3x_temperature, "ºC" },
+         { "hum_air", get_sht3x_humidity, "%" }}
         , 2 },
     { "CH4", board_initadc, {{ "ch4", get_gas_sensor, "ppm", { 0.0, 100.0} }}, 1 },
     { "H2S", board_initadc, {{ "h2s", get_gas_sensor, "ppm", { 0.0, 10.0} }}, 1 },
@@ -301,34 +302,17 @@ static int getupdatePeriod( struct pub_topic const* tp ) {
 
 /*Callback function used to pusblish measurement on the mqtt topic*/
 static void pubMeasurement_callback( TimerHandle_t xTimer ) {
-    
-    struct service_config const* sc = &scfg;
-    xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.measures )), 100 );
-    json_frame( jsonstatus, JSON_MEASUREMENT );
-    client.publish( sc->measures.topic, jsonstatus);
-    Serial.printf("Publishing measurements %s\n", jsonstatus);          
+    xEventGroupSetBits( events, PUB_MEASURES );        
 }
 
 /*Callback function used to pusblish status on the mqtt topic*/
 static void pubStatus_callback( TimerHandle_t xTimer ) {
-    struct service_config const* sc = &scfg;
-    xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.status )), 100 );
-    json_frame( jsonstatus, JSON_STATUS );
-    client.publish( sc->status.topic, jsonstatus );
-    Serial.printf("Publishing status %s\n", jsonstatus);
-    
-    if( verbose ) {
-        printLocalTime();
-    }
+    xEventGroupSetBits( events, PUB_STATUS );        
 }
 
 /*Callback function used to pusblish info on the mqtt topic*/
 static void pubInfo_callback( TimerHandle_t xTimer ) {
-    struct service_config const* sc = &scfg;
-    xTimerStop( tmPubInfo, 100 );  
-    json_frame( jsonstatus, JSON_INFO );
-    client.publish( sc->info.topic, jsonstatus);
-    Serial.printf("Publishing info %s\n", jsonstatus);
+    xEventGroupSetBits( events, PUB_INFO );        
 }
 
 /*Test the status of the Wifi connection and attempt reconnection if it fails.*/
@@ -383,9 +367,9 @@ bool ctrl_isConfigModeEnable( void ) {
 void ctrl_task( void * parameter ) {
 
     interface_setMode( OFF );
-    tmPubMeasurement = xTimerCreate( "tmMeasurement", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, pubMeasurement_callback );
-    tmPubStatus = xTimerCreate( "tmStatu", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, pubStatus_callback );
-    tmPubInfo = xTimerCreate( "tmInfo", pdMS_TO_TICKS( 10000 ), pdTRUE, NULL, pubInfo_callback );
+    tmPubMeasurement = xTimerCreate( "tmMeasurement", pdMS_TO_TICKS( 20000 ), pdTRUE, NULL, pubMeasurement_callback );
+    tmPubStatus = xTimerCreate( "tmStatu", pdMS_TO_TICKS( 15000 ), pdTRUE, NULL, pubStatus_callback );
+    tmPubInfo = xTimerCreate( "tmInfo", pdMS_TO_TICKS( 10000 ), pdFALSE, NULL, pubInfo_callback );
 
     struct acq_cal const* cal = &cfg.cal;
     getCalibrationEquation( &eq, cal->val[0].x, cal->val[0].y, cal->val[1].x, cal->val[1].y );
@@ -487,11 +471,8 @@ void ctrl_task( void * parameter ) {
             
             Serial.println("Attempting MQTT connection...");
             if ( client.connect( scfg.client_id, scfg.username, scfg.password ) ) {                
-                xTimerChangePeriod( tmPubInfo, pdMS_TO_TICKS( 5000 ), 100 );
                 xTimerStart( tmPubInfo, 100 );
-                xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( 10000 ), 100 );
                 xTimerStart( tmPubMeasurement, 100 );
-                xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( 15000 ), 100 );
                 xTimerStart( tmPubStatus, 100 );
                 
                 if (verbose ) {
@@ -522,6 +503,9 @@ void ctrl_task( void * parameter ) {
                 if( apAutoStart )
                     ctrl_enterConfigMode( );
                 interface_setMode( OFF );
+                xTimerStop( tmPubInfo, 100 );
+                xTimerStop( tmPubMeasurement, 100 );
+                xTimerStop( tmPubStatus, 100 );
                 continue;
             }
         }
@@ -530,8 +514,37 @@ void ctrl_task( void * parameter ) {
             Serial.println("\nMQTT connection failed\n");
             xEventGroupSetBits( events, CONNECT_MQTT );
             interface_setMode( BLINK );
+            xTimerStop( tmPubInfo, 100 );
+            xTimerStop( tmPubMeasurement, 100 );
+            xTimerStop( tmPubStatus, 100 );
         }
-        
+
+        if( bitfied & PUB_INFO ) {
+            xEventGroupClearBits( events, PUB_INFO );
+            json_frame( jsonstatus, JSON_INFO );
+            client.publish( scfg.info.topic, jsonstatus);
+            Serial.printf("Publishing info %s\n", jsonstatus);
+        }
+
+        if( bitfied & PUB_STATUS ) {
+            xEventGroupClearBits( events, PUB_STATUS );
+            json_frame( jsonstatus, JSON_STATUS );
+            client.publish( scfg.status.topic, jsonstatus );
+            Serial.printf("Publishing status %s\n", jsonstatus);
+            xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.status )), 100 );
+            if( verbose ) {
+                printLocalTime();
+            }           
+        }
+
+        if( bitfied & PUB_MEASURES ) {
+            xEventGroupClearBits( events, PUB_MEASURES );
+            json_frame( jsonstatus, JSON_MEASUREMENT );
+            client.publish( scfg.measures.topic, jsonstatus);
+            Serial.printf("Publishing measurements %s\n", jsonstatus);
+            xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.measures )), 100 ); 
+        }
+
         client.loop();
         vTaskDelay( pdMS_TO_TICKS(250) );
     }
