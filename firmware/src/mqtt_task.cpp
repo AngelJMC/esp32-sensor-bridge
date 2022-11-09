@@ -22,8 +22,7 @@
 #include "SHTSensor.h"
 
 enum {
-    verbose = 1,
-    apAutoStart = 0
+    verbose = 1
 };
 
 /*Calibration equation*/
@@ -370,7 +369,7 @@ void ctrl_task( void * parameter ) {
     tmPubMeasurement = xTimerCreate( "tmMeasurement", pdMS_TO_TICKS( 20000 ), pdTRUE, NULL, pubMeasurement_callback );
     tmPubStatus = xTimerCreate( "tmStatu", pdMS_TO_TICKS( 15000 ), pdTRUE, NULL, pubStatus_callback );
     tmPubInfo = xTimerCreate( "tmInfo", pdMS_TO_TICKS( 10000 ), pdFALSE, NULL, pubInfo_callback );
-
+    int failCounter = 0;
     struct acq_cal const* cal = &cfg.cal;
     getCalibrationEquation( &eq, cal->val[0].x, cal->val[0].y, cal->val[1].x, cal->val[1].y );
     /* Attempt to create the event group. */
@@ -382,8 +381,13 @@ void ctrl_task( void * parameter ) {
 
     for(;;){ 
         
+        bool const iscfgmode = ctrl_isConfigModeEnable();
+        if ( 10 < failCounter && !iscfgmode ) {
+            Serial.println("Restarting ESP...");  
+            ESP.restart();  
+        }
+
         bitfied = xEventGroupGetBits( events );
-        
         /*Configura WiFi Access Point*/
         if( bitfied & START_AP_WIFI ) {
             Serial.println("Starting AP");
@@ -397,11 +401,7 @@ void ctrl_task( void * parameter ) {
             if( verbose )
                 print_APcfg( ap );
 
-            if( apAutoStart )
-                ctrl_enterConfigMode( );
-            else
-                WiFi.mode(WIFI_STA);
-
+            WiFi.mode(WIFI_STA);
             xEventGroupClearBits( events, START_AP_WIFI );
         }
 
@@ -438,6 +438,7 @@ void ctrl_task( void * parameter ) {
             WiFi.begin( wf->ssid, wf->pass );
             if ( !testWifi() ) {
                 Serial.println("\nWifi connection failed");
+                vTaskDelay( pdMS_TO_TICKS(5000) );
                 continue;
             }
             
@@ -445,6 +446,23 @@ void ctrl_task( void * parameter ) {
             interface_setMode( BLINK );
             xEventGroupSetBits( events,   CONNECT_MQTT );
             xEventGroupClearBits( events, CONNECT_WIFI );
+            failCounter = 0;
+        }
+        
+        /*Check Wifi status*/
+        if( ( WiFi.status() != WL_CONNECTED ) ) {
+            if( !testWifi() ) {
+                Serial.println("\nWifi connection failed, try again in 5 seconds\n");
+                client.disconnect();
+                xEventGroupSetBits( events, CONNECT_WIFI );
+                interface_setMode( OFF );
+                ++failCounter;
+                xTimerStop( tmPubInfo, 100 );
+                xTimerStop( tmPubMeasurement, 100 );
+                xTimerStop( tmPubStatus, 100 );
+                vTaskDelay( pdMS_TO_TICKS(5000) );
+                continue;
+            }
         }
 
         /*Update calibration parameters*/
@@ -456,67 +474,52 @@ void ctrl_task( void * parameter ) {
 
         /*Connect to the MQTT broker and NTP server */
         bool const updateserv = webserver_isServiceUpdated( );
-        bool const iscfgmode = ctrl_isConfigModeEnable();
         if( ((bitfied & CONNECT_MQTT) || updateserv) && !iscfgmode ) {
             
             memcpy( &scfg, &cfg.service, sizeof(cfg.service) );
             if( scfg.host_ip[0] == 0 || scfg.client_id == 0 ) {
-                Serial.println("No mqtt config found");
+                Serial.println("No MQTT config found");
                 vTaskDelay( pdMS_TO_TICKS(10000) );
                 xEventGroupSetBits( events, CONNECT_MQTT );
                 continue;
             }
             
-            client.setServer( scfg.host_ip, scfg.port);
-            
             Serial.println("Attempting MQTT connection...");
-            if ( client.connect( scfg.client_id, scfg.username, scfg.password ) ) {                
-                xTimerStart( tmPubInfo, 100 );
-                xTimerStart( tmPubMeasurement, 100 );
-                xTimerStart( tmPubStatus, 100 );
-                
-                if (verbose ) {
-                    Serial.println("Connected to broker");
-                }
-            } 
-            else {
+            client.setServer( scfg.host_ip, scfg.port);
+            bool connected = client.connect( scfg.client_id, scfg.username, scfg.password );
+            if ( !connected ) {
                 Serial.printf("Failed broker connection, rc= %d %s\n", client.state(), "try again in 5 seconds");
+                ++failCounter;
                 vTaskDelay( pdMS_TO_TICKS(5000) ); 
                 continue;
             }
+                           
+            xTimerStart( tmPubInfo, 100 );
+            xTimerStart( tmPubMeasurement, 100 );
+            xTimerStart( tmPubStatus, 100 );
             
-            if( !updateserv ) {
-                ctrl_exitConfigMode(  );
-            }
-
             const long  gmtOffset_sec = 3600;
             const int   daylightOffset_sec = 3600;
             configTime( gmtOffset_sec, daylightOffset_sec, cfg.ntp.host );
+            Serial.println("Connected to broker");
             interface_setMode( ON );
             xEventGroupClearBits( events, CONNECT_MQTT );
+            failCounter = 0;
         }
         
-        if( ( WiFi.status() != WL_CONNECTED ) ) {
-            if ( !testWifi() ) {
-                Serial.println("\nWifi connection failed");
-                xEventGroupSetBits( events, CONNECT_WIFI );
-                if( apAutoStart )
-                    ctrl_enterConfigMode( );
-                interface_setMode( OFF );
-                xTimerStop( tmPubInfo, 100 );
-                xTimerStop( tmPubMeasurement, 100 );
-                xTimerStop( tmPubStatus, 100 );
-                continue;
-            }
-        }
-
-        if( !client.connected() ) {
-            Serial.println("\nMQTT connection failed\n");
+        /*Check MQTT conection status*/
+        bool mqttconneted = client.loop();
+        if( !mqttconneted ) {
+            Serial.println("\nMQTT connection failed, try again in 5 seconds\n");
+            client.disconnect();
             xEventGroupSetBits( events, CONNECT_MQTT );
             interface_setMode( BLINK );
+            ++failCounter;
             xTimerStop( tmPubInfo, 100 );
             xTimerStop( tmPubMeasurement, 100 );
             xTimerStop( tmPubStatus, 100 );
+            vTaskDelay( pdMS_TO_TICKS(5000) );
+            continue;
         }
 
         if( bitfied & PUB_INFO ) {
@@ -544,8 +547,7 @@ void ctrl_task( void * parameter ) {
             Serial.printf("Publishing measurements %s\n", jsonstatus);
             xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.measures )), 100 ); 
         }
-
-        client.loop();
+        
         vTaskDelay( pdMS_TO_TICKS(250) );
     }
 }
