@@ -135,8 +135,8 @@ const src2sens[] = {
         {{ "temp_air", get_sht3x_temperature, "ºC" },
          { "hum_air", get_sht3x_humidity, "%" }}
         , 2 },
-    { "CH4", board_initadc, {{ "ch4", get_gas_sensor, "ppm", { 0.0, 100.0} }}, 1 },
-    { "H2S", board_initadc, {{ "h2s", get_gas_sensor, "ppm", { 0.0, 10.0} }}, 1 },
+    { "CH4", board_initadc, {{ "ch4", get_gas_sensor, "ppm", { 0.0, 10000.0} }}, 1 }, /*ppm = LIE*10000*/
+    { "H2S", board_initadc, {{ "h2s", get_gas_sensor, "ppm", { 0.0, 100.0} }}, 1 },
     { "NH3", board_initadc, {{ "nh3", get_gas_sensor, "ppm", { 0.0, 100.0} }}, 1 }
 };
 
