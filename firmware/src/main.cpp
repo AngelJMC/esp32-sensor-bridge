@@ -6,7 +6,6 @@
 */
 
 #include "Arduino.h"
-#include "FreeRTOS.h"
 #include "webserver.h"
 #include "mqtt_task.h"
 #include "config-mng.h"

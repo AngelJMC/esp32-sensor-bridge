@@ -7,7 +7,6 @@
 
 #include "uinterface.h"
 #include "Arduino.h"
-#include "FreeRTOS.h"
 #include "config-mng.h"
 #include "adc121.h"
 
