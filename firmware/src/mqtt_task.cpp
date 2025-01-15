@@ -57,7 +57,7 @@ enum {
     JSON_TX_SIZE = 512
 };
 
-static char jsonstatus[JSON_TX_SIZE];
+static char payload_json[JSON_TX_SIZE];
 
 enum flags {
     START_AP_WIFI = 1 << 0,
@@ -524,16 +524,16 @@ void ctrl_task( void * parameter ) {
 
         if( bitfied & PUB_INFO ) {
             xEventGroupClearBits( events, PUB_INFO );
-            json_frame( jsonstatus, JSON_INFO );
-            client.publish( scfg.info.topic, jsonstatus);
-            Serial.printf("Publishing info %s\n", jsonstatus);
+            json_frame( payload_json, JSON_INFO );
+            client.publish( scfg.info.topic, payload_json);
+            Serial.printf("Publishing info %s\n", payload_json);
         }
 
         if( bitfied & PUB_STATUS ) {
             xEventGroupClearBits( events, PUB_STATUS );
-            json_frame( jsonstatus, JSON_STATUS );
-            client.publish( scfg.status.topic, jsonstatus );
-            Serial.printf("Publishing status %s\n", jsonstatus);
+            json_frame( payload_json, JSON_STATUS );
+            client.publish( scfg.status.topic, payload_json );
+            Serial.printf("Publishing status %s\n", payload_json);
             xTimerChangePeriod( tmPubStatus, pdMS_TO_TICKS( getupdatePeriod( &scfg.status )), 100 );
             if( verbose ) {
                 printLocalTime();
@@ -542,9 +542,9 @@ void ctrl_task( void * parameter ) {
 
         if( bitfied & PUB_MEASURES ) {
             xEventGroupClearBits( events, PUB_MEASURES );
-            json_frame( jsonstatus, JSON_MEASUREMENT );
-            client.publish( scfg.measures.topic, jsonstatus);
-            Serial.printf("Publishing measurements %s\n", jsonstatus);
+            json_frame( payload_json, JSON_MEASUREMENT );
+            client.publish( scfg.measures.topic, payload_json);
+            Serial.printf("Publishing measurements %s\n", payload_json);
             xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.measures )), 100 ); 
         }
         
