@@ -20,6 +20,10 @@
 
 #include "Wire.h"
 #include "SHTSensor.h"
+#include "sensor-task.h"
+
+#include <AsyncUDP.h>
+
 
 enum {
     verbose = 1
@@ -35,6 +39,9 @@ WiFiClient wifiClient;
 PubSubClient client(wifiClient);
 
 SHTSensor sht;
+
+AsyncUDP udp;
+
 
 /*Create a static freertos timer*/
 static TimerHandle_t tmPubMeasurement;
@@ -394,7 +401,7 @@ void ctrl_task( void * parameter ) {
             interface_setMode( OFF );
             struct ap_config const* ap  = &cfg.ap;
             IPAddress ip(ap->addr.ip[0], ap->addr.ip[1], ap->addr.ip[2], ap->addr.ip[3]);
-            IPAddress nmask(255, 255, 0, 0);
+            IPAddress nmask(255, 255, 255, 0);
             WiFi.softAP( ap->ssid, ap->pass);
             WiFi.softAPConfig(ip, ip, nmask );
 
@@ -471,7 +478,20 @@ void ctrl_task( void * parameter ) {
             struct acq_cal const* cal = &cfg.cal;
             getCalibrationEquation( &eq, cal->val[0].x, cal->val[0].y, cal->val[1].x, cal->val[1].y );
         }
+        
+        /*Send data to UDP*/
+        dataframe data;
+        bool const newframe = waitnewData( &data);
+        if( newframe ) {
+            if( 0 != cfg.udp.port ) {
+                IPAddress ip( cfg.udp.ip.ip[0], cfg.udp.ip.ip[1], cfg.udp.ip.ip[2], cfg.udp.ip.ip[3] );
+                udp.connect( ip, cfg.udp.port );
+                udp.print( dataStructureToCsv( &data ) );
+                udp.close();
+            }
+        } 
 
+#if 0
         /*Connect to the MQTT broker and NTP server */
         bool const updateserv = webserver_isServiceUpdated( );
         if( ((bitfied & CONNECT_MQTT) || updateserv) && !iscfgmode ) {
@@ -547,8 +567,8 @@ void ctrl_task( void * parameter ) {
             Serial.printf("Publishing measurements %s\n", payload_json);
             xTimerChangePeriod( tmPubMeasurement, pdMS_TO_TICKS( getupdatePeriod( &scfg.measures )), 100 ); 
         }
-        
-        vTaskDelay( pdMS_TO_TICKS(250) );
+#endif
+        vTaskDelay( pdMS_TO_TICKS(20) );
     }
 }
 
