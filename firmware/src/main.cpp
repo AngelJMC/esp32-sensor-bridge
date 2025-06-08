@@ -8,6 +8,7 @@
 #include "Arduino.h"
 #include "webserver.h"
 #include "mqtt_task.h"
+#include "sensor-task.h"
 #include "config-mng.h"
 #include "SPIFFS.h"
 #include <ArduinoJson.h>
@@ -73,6 +74,7 @@ void Ext_INT1_ISR( void ) {
 
 
 
+
 void setup() {
     //vTaskDelay(pdMS_TO_TICKS(1000));
     Serial.begin(115200);
@@ -91,6 +93,8 @@ void setup() {
     attachInterrupt(SWITCH, Ext_INT1_ISR, RISING);
     config_load(  );
 
+    sensor_init( );
+
     //########################  reading config file ########################################
     if (!SPIFFS.begin()) {
         Serial.println("An Error has occurred while mounting SPIFFS");
@@ -102,6 +106,7 @@ void setup() {
     // Now set up two Tasks to run independently.
     xTaskCreate( webserver_task , "webserver-task",  1024*10  ,NULL  ,  2,  NULL );
     xTaskCreate( ctrl_task ,      "ctrl-task",       1024*3   ,NULL  ,  1,  NULL );
+    xTaskCreate( sensor_task,     "sensor-task",     1024*2   ,NULL  ,  1,  NULL );
 
 }
 
