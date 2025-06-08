@@ -52,6 +52,12 @@ struct ntp_config {
     int  period;
 };
 
+
+struct udp_config {
+    struct ip ip;
+    int port;
+};
+
 struct service_config {
     char host_ip[64];
     uint16_t port;
@@ -91,6 +97,7 @@ struct config  {
     struct wifi_config wifi;
     struct service_config  service;
     struct ntp_config ntp;
+    struct udp_config udp;
     struct acq_cal cal;
 };
 
@@ -108,6 +115,9 @@ void config_setdefault( void );
 
 void print_ntpCfg( struct ntp_config const* ntp );
 
+void print_udpCfg( struct udp_config const* udp );
+
+
 void print_NetworkCfg( struct wifi_config const* ntwk );
 
 void printIp( char const* name, struct ip const* src );
@@ -117,7 +127,6 @@ void print_apCfg( struct ap_config const* ap );
 void print_ServiceCfg( struct service_config const* srvc );
 
 void print_Calibration( struct acq_cal const* cal );
-
 
 #endif 
  

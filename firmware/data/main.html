@@ -171,6 +171,26 @@
                     </div>
                 </div>
 
+                <div class=form-group>
+                    <div class=row>
+                        <div class=col-md-8> <label>UDP server address</label>
+                            <input type=text id="hudp" class=form-control placeholder="UDP Address" maxlength="15">
+                        </div>
+                        <div class=col-md-4><label>Port</label>
+                            <input type=text id="pudp" class=form-control placeholder="1883" maxlength="5" value=""> </div>
+                    </div>
+                </div>
+
+                <div class=form-group>
+                    <div class=row>
+                        <div class=col-md-12>
+                            <div class=text-center>
+                                <button class="btn btn-block" type="button" id="udp_btn" title=Apply>Apply</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
 
                 
                 <div class=form-group>
@@ -400,6 +420,10 @@
                         getNtpData();
                     });
 
+                    $(document).on("click", "#udp_btn", function () {
+                        getUdpData();
+                    });
+
                     $(document).on("click", "#con_btn", function () {
                         getNetWork();
                     });
@@ -432,6 +456,7 @@
 
                     $(document).on('click', '#liService', function () {
                         setNtpData();
+                        setUdpData();
                         setServiceData();
                     });
 
@@ -601,6 +626,37 @@
                         if( response ) {
                             $("#hntp").val(response.host);
                             $("#pntp").val(response.port);
+                        }
+                        else {
+                            console.log("response empty");
+                        }
+                    });
+                }
+
+                function getUdpData() {
+                    let param = encodeURIComponent( 
+                        "{\"ip\":\""        + $("#hudp").val()       + "\","
+                            + "\"port\":"     + $("#pudp").val()                           
+                            + "}"
+                    );
+
+                    if ($("#ip").val() == "" || $("#port").val() == "") {
+                        alert("IP,Port can't be empty");
+                    } 
+                    else {
+                        $.get("/applyUdp?parameters=" + param).done( function (response) {
+                            if (response == "ok") {
+                                alert("Changes applied");
+                            }
+                        });
+                    }
+                }
+
+                function setUdpData() {
+                    $.get("/udpData").done( function(response){ 
+                        if( response ) {
+                            $("#hudp").val(response.ip);
+                            $("#pudp").val(response.port);
                         }
                         else {
                             console.log("response empty");

@@ -237,6 +237,20 @@ void webserver_task( void * parameter ) {
         if( verbose ) Serial.println(content);
     });
 
+        /*Send json with NTP configuration*/
+    server.on("/udpData", HTTP_GET, [](AsyncWebServerRequest * request) {
+        DynamicJsonDocument json( 128 );
+        String temporal;
+        ipToString( &temporal, cfg.udp.ip );
+        json["ip"]     = temporal;
+        json["port"]   = cfg.udp.port;
+
+        String content;
+        serializeJson(json, content);
+        request->send(200, "application/json", content);
+        if( verbose ) Serial.println(content);
+    });
+
     /*Send json with mqtt broker and topic configuration*/
     server.on("/serviceData", HTTP_GET, [](AsyncWebServerRequest * request) {
         DynamicJsonDocument json( 2*1024 );
@@ -355,6 +369,34 @@ void webserver_task( void * parameter ) {
         
         if( verbose )
             print_ntpCfg( &cfg.ntp );
+    });
+
+    /*Receive json with mqtt broker and topic configuration*/
+    server.on("/applyUdp", HTTP_GET, [] (AsyncWebServerRequest * request) {
+        
+        String parameters = request->getParam("parameters")->value();
+        if ( verbose )
+            Serial.println(parameters);
+        
+        const size_t capacity = JSON_OBJECT_SIZE(15) + 128;
+        DynamicJsonDocument doc(capacity);
+        auto error = deserializeJson(doc, parameters);
+        if (error) {
+            Serial.println("parseObject() failed:");
+            request->send(200, "text/plain", "error");
+            return;
+        }
+
+
+        JsonObject root = doc.as<JsonObject>();
+        if (root.containsKey("ip"))   stringToIp(&cfg.udp.ip, root["ip"]);
+        if (root.containsKey("port"))  cfg.udp.port = root["port"];
+        
+        xEventGroupSetBits( eventGroup, SAVE_CFG );
+        request->send(200, "text/plain", "ok");
+        
+        if( verbose )
+            print_udpCfg( &cfg.udp );
     });
 
     /*Receive WIFI credential and network configuration from web page*/

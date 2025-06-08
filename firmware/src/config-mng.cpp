@@ -140,6 +140,11 @@ void print_ntpCfg( struct ntp_config const* ntp ) {
     Serial.printf("NTP PERIOD: %d\n", ntp->period);
 }
 
+void print_udpCfg( struct udp_config const* udp ) {
+    printIp("UDP IP: ", &udp->ip);
+    Serial.printf("UDP PORT: %d\n", udp->port);
+}
+
 void print_NetworkCfg( struct wifi_config const* ntwk ) {
         Serial.printf("WIFI SSID: %s\n", ntwk->ssid);
         Serial.printf("WIFI PASS: %s\n", ntwk->pass);
